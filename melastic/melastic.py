@@ -240,6 +240,12 @@ class Scroll(object):
     def __iter__(self):
         return self
 
+    def next(self):
+        #
+        # For Python 2.7 compatibility
+        #
+        return self.__next__()
+
     def __next__(self):
         if self.scroll_id is None:
             self.__open()
