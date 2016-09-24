@@ -1,3 +1,4 @@
+"""Defines classes and methods for working with ElasticSearch."""
 import json
 import logging
 import collections
@@ -12,22 +13,58 @@ LOGGER = logging.getLogger(__name__)
 Config = collections.namedtuple(
     "Config", ["http_endpoint", "http_headers", "index", "doctype"]
 )
+"""Stores the parameters for connecting to an ElasticSearch node."""
+
+
+def bulk_create(config, docs):
+    """Create documents in bulk."""
+    return BulkCreate(config, docs).push()
+
+
+def bulk_update(config, docs):
+    """Update documents in bulk."""
+    return BulkUpdate(config, docs).push()
+
+
+def bulk_index(config, docs):
+    """Index documents in bulk."""
+    return BulkIndex(config, docs).push()
+
+
+def bulk_delete(config, docs):
+    """Delete documents in bulk."""
+    return BulkDelete(config, docs).push()
 
 
 class Batch(object):
+    """Represents an abstract batch operation."""
 
     def __init__(self, config, docs):
+        if len(docs) == 0:
+            raise ValueError("empty batch")
         self.config = config
         self.docs = docs
 
+    def check_batch(self):
+        """Raises KeyError if any document of the batch is incompletely
+        specified."""
+        raise NotImplementedError("abstract method")
+
     def serialize(self):
+        """Returns a string that could be sent directly to the bulk API."""
         raise NotImplementedError("abstract method")
 
     def push(self):
+        """Sends the batch to the bulk API and processes results."""
         raise NotImplementedError("abstract method")
 
 
 class BulkCreate(Batch):
+    """Creates new documents."""
+
+    def check_batch(self):
+        for doc in self.batch:
+            doc["_source"]
 
     def serialize(self):
         lines = []
@@ -42,17 +79,15 @@ class BulkCreate(Batch):
                 }
             }
             lines.append(json.dumps(action))
-            lines.append(json.dumps(doc["src"]))
+            lines.append(json.dumps(doc["_source"]))
         #
         # N.B. ElasticSearch requires a final newline.
         #
         return "\n".join(lines) + "\n"
 
     def push(self):
-        """Returns a dictionary that keys URLs to their Elastic IDs."""
-        if not self.docs:
-            return self.docs
-
+        """Returns the created documents as a list of dictionaries.
+        Each returned document will have an _id and status."""
         data = self.serialize()
 
         r = requests.post(
@@ -70,6 +105,9 @@ class BulkCreate(Batch):
         assert len(reply["items"]) == len(self.docs)
 
         for i, remote in enumerate(reply["items"]):
+            #
+            # TODO: if status != 200, then will there be an _id?
+            #
             self.docs[i]["_id"] = remote["create"]["_id"]
             self.docs[i]["status"] = remote["create"]["status"]
 
@@ -77,10 +115,17 @@ class BulkCreate(Batch):
 
 
 class BulkUpdate(Batch):
+    """Updates documents by replacing the values of existing fields or adding
+    new ones.  Does not delete existing fields."""
 
     def __init__(self, *args, **kwargs):
         self.action = kwargs.pop("action", "update")
         super(BulkUpdate, self).__init__(*args, **kwargs)
+
+    def check_batch(self):
+        for doc in self.batch:
+            doc["_source"]
+            doc["_id"]
 
     def serialize(self):
         #
@@ -96,13 +141,12 @@ class BulkUpdate(Batch):
                 }
             }
             lines.append(json.dumps(action))
-            lines.append(json.dumps({"doc": doc["src"]}))
+            lines.append(json.dumps({"doc": doc["_source"]}))
         return "\n".join(lines) + "\n"
 
     def push(self):
-        if not self.docs:
-            return self.docs
-
+        """Returns the documents.  Each document will contain its update
+        status."""
         data = self.serialize()
 
         r = requests.post(
@@ -142,11 +186,16 @@ class BulkIndex(BulkUpdate):
                 }
             }
             lines.append(json.dumps(action))
-            lines.append(json.dumps(doc["src"]))
+            lines.append(json.dumps(doc["_source"]))
         return "\n".join(lines) + "\n"
 
 
 class BulkDelete(Batch):
+    """Deletes the documents specified in the batch."""
+
+    def check_batch(self):
+        for doc in self.batch:
+            doc["_id"]
 
     def serialize(self):
         lines = []
@@ -161,9 +210,6 @@ class BulkDelete(Batch):
         return "\n".join(lines) + "\n"
 
     def push(self):
-        if not self.docs:
-            return
-
         data = self.serialize()
 
         r = requests.post(
@@ -174,13 +220,13 @@ class BulkDelete(Batch):
         LOGGER.debug(r.text)
         assert r.status_code == httplib.OK
 
-
-Scroll = collections.namedtuple(
-    "Scroll", ["scroll_id", "total_hits", "total_pages", "first_page"]
-)
+        #
+        # TODO: return status
+        #
 
 
 class Scroll(object):
+    """Represents a scrollable query on the ElasticSearch node."""
 
     def __init__(self, config, query, lifetime="1m"):
         #
