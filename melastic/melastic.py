@@ -305,6 +305,8 @@ class Scroll(object):
         elif self.next_page_num >= self.num_pages:
             raise StopIteration
 
+        self.next_page_num += 1
+
         r = requests.get(
             self.config.http_endpoint + "/_search/scroll",
             headers=self.config.http_headers,

@@ -15,7 +15,7 @@ class BulkCreateTest(unittest.TestCase):
 
     @mock.patch("requests.post")
     def test(self, mock_post):
-        docs = [{"src": {"text": "dummy text"}}]
+        docs = [{"_source": {"text": "dummy text"}}]
         create = melastic.BulkCreate(DUMMY_CONFIG, docs)
         self.assertEquals(create.docs, docs)
 
@@ -59,7 +59,7 @@ class BulkUpdateTest(unittest.TestCase):
 
     @mock.patch("requests.post")
     def test(self, mock_post):
-        docs = [{"_id": "abc", "src": {"text": "dummy text"}}]
+        docs = [{"_id": "abc", "_source": {"text": "dummy text"}}]
         update = melastic.BulkUpdate(DUMMY_CONFIG, docs)
         self.assertEquals(update.docs, docs)
 
@@ -101,7 +101,7 @@ class BulkIndexTest(unittest.TestCase):
 
     @mock.patch("requests.post")
     def test(self, mock_post):
-        docs = [{"_id": "abc", "src": {"text": "dummy text"}}]
+        docs = [{"_id": "abc", "_source": {"text": "dummy text"}}]
         index = melastic.BulkIndex(DUMMY_CONFIG, docs)
         self.assertEquals(index.docs, docs)
 
@@ -185,10 +185,12 @@ class ScrollTest(unittest.TestCase):
         self.assertEquals(scroll.scroll_id, "dummy_scroll_id")
         self.assertEquals(len(scroll.first_page), 1)
         self.assertEquals(scroll.first_page[0]["_id"], "abc")
+        self.assertEquals(scroll.next_page_num, 1)
 
         first_page = next(scroll)
         self.assertEquals(len(first_page), 1)
         self.assertEquals(first_page[0]["_id"], "abc")
+        self.assertEquals(scroll.next_page_num, 1)
 
         mock_get.return_value.text = """
 {
@@ -221,6 +223,7 @@ class ScrollTest(unittest.TestCase):
         self.assertIsNone(scroll.first_page)
         self.assertEquals(len(second_page), 1)
         self.assertEquals(second_page[0]["_id"], "def")
+        self.assertEquals(scroll.next_page_num, 2)
 
         scroll._Scroll__close()
 

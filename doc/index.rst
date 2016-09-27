@@ -12,11 +12,11 @@ First, specify some :ref:`configuration parameters <config_label>` for connectin
 
     import melastic
     config = melastic.Config(
-        "http://yournode.com", {"Authorization": "Token your_auth_token"},
+        "http://yournode.com", {"Authorization": "Basic your_auth_token"},
         "your_index", "your_document_type"
     )
 
-You can then perform batch operations (:py:func:`melastic.bulk_create`, :py:func:`melastic.update`, :py:func:`melastic.index`, and :py:func:`melastic.delete`) on documents.
+You can then perform batch operations (:py:func:`melastic.bulk_create`, :py:func:`melastic.bulk_update`, :py:func:`melastic.bulk_index`, and :py:func:`melastic.bulk_delete`) on documents.
 
 You can also :py:class:`melastic.Scroll` through existing documents::
 
