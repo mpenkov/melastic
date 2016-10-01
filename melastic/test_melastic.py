@@ -54,6 +54,17 @@ class BulkCreateTest(unittest.TestCase):
         self.assertEquals(docs[0]["_id"], "new_elastic_id")
         self.assertEquals(docs[0]["status"], "OK")
 
+    @mock.patch("requests.post")
+    def test_error(self, mock_post):
+        mock_post.return_value = mock.MagicMock()
+        mock_post.return_value.status_code = httplib.NOT_FOUND
+        mock_post.return_value.text = "these aren't the droids you're looking"
+
+        with self.assertRaises(melastic.HttpException) as err:
+            docs = [{"_source": {"text": "dummy text"}}]
+            melastic.BulkCreate(DUMMY_CONFIG, docs).push()
+            self.assertEqual(err.message, "received HTTP 404")
+
 
 class BulkUpdateTest(unittest.TestCase):
 
@@ -96,6 +107,17 @@ class BulkUpdateTest(unittest.TestCase):
         self.assertTrue(mock_post.called)
         self.assertEquals(docs[0]["status"], "OK")
 
+    @mock.patch("requests.post")
+    def test_error(self, mock_post):
+        mock_post.return_value = mock.MagicMock()
+        mock_post.return_value.status_code = httplib.NOT_FOUND
+        mock_post.return_value.text = "these aren't the droids you're looking"
+
+        with self.assertRaises(melastic.HttpException) as err:
+            docs = [{"_id": "dummy_id", "_source": {"text": "dummy text"}}]
+            melastic.BulkUpdate(DUMMY_CONFIG, docs).push()
+            self.assertEqual(err.message, "received HTTP 404")
+
 
 class BulkIndexTest(unittest.TestCase):
 
@@ -135,6 +157,17 @@ class BulkIndexTest(unittest.TestCase):
         #
         self.assertTrue(mock_post.called)
         self.assertEquals(docs[0]["status"], "OK")
+
+    @mock.patch("requests.post")
+    def test_error(self, mock_post):
+        mock_post.return_value = mock.MagicMock()
+        mock_post.return_value.status_code = httplib.NOT_FOUND
+        mock_post.return_value.text = "these aren't the droids you're looking"
+
+        with self.assertRaises(melastic.HttpException) as err:
+            docs = [{"_id": "dummy_id", "_source": {"text": "dummy text"}}]
+            melastic.BulkIndex(DUMMY_CONFIG, docs).push()
+            self.assertEqual(err.message, "received HTTP 404")
 
 DUMMY_QUERY = {"query": {"match_all": {}}}
 

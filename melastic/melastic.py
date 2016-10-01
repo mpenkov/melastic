@@ -16,6 +16,14 @@ Config = collections.namedtuple(
 """Stores the parameters for connecting to an ElasticSearch node."""
 
 
+class HttpException(Exception):
+    """Raised when the library receives an unexpected HTTP status code."""
+
+    def __init__(self, code, body):
+        super(HttpException, self).__init__("received HTTP %d" % code)
+        self.body = body
+
+
 def bulk_create(config, docs):
     """Create documents in bulk."""
     return BulkCreate(config, docs).push()
@@ -96,7 +104,9 @@ class BulkCreate(Batch):
         )
         LOGGER.debug("push: r.status_code: %s", r.status_code)
         LOGGER.debug(r.text)
-        assert r.status_code == httplib.OK
+
+        if r.status_code != httplib.OK:
+            raise HttpException(r.status_code, r.text)
 
         reply = json.loads(r.text)
         if reply["errors"]:
@@ -155,7 +165,9 @@ class BulkUpdate(Batch):
         )
         LOGGER.debug("push: r.status_code: %s", r.status_code)
         LOGGER.debug(r.text)
-        assert r.status_code == httplib.OK
+
+        if r.status_code != httplib.OK:
+            raise HttpException(r.status_code, r.text)
 
         reply = json.loads(r.text)
         if reply["errors"]:
@@ -218,7 +230,9 @@ class BulkDelete(Batch):
         )
         LOGGER.debug("push: r.status_code: %s", r.status_code)
         LOGGER.debug(r.text)
-        assert r.status_code == httplib.OK
+
+        if r.status_code != httplib.OK:
+            raise HttpException(r.status_code, r.text)
 
         #
         # TODO: return status
@@ -259,8 +273,12 @@ class Scroll(object):
             params={"scroll": self.lifetime},
             headers=self.config.http_headers, data=json.dumps(self.query)
         )
+        LOGGER.debug(r.status_code)
         LOGGER.debug(r.text)
-        assert r.status_code == httplib.OK
+
+        if r.status_code != httplib.OK:
+            raise HttpException(r.status_code, r.text)
+
         r = json.loads(r.text)
 
         self.scroll_id = r["_scroll_id"]
@@ -312,5 +330,11 @@ class Scroll(object):
             headers=self.config.http_headers,
             params={"scroll": self.lifetime, "scroll_id": self.scroll_id}
         )
-        assert r.status_code == httplib.OK
+
+        if r.status_code != httplib.OK:
+            raise HttpException(r.status_code, r.text)
         return json.loads(r.text)["hits"]["hits"]
+
+    def __len__(self):
+        """Return the number of pages in this scroll."""
+        return self.num_pages
