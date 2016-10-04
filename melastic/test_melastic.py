@@ -38,7 +38,7 @@ class BulkCreateTest(unittest.TestCase):
     "items": [
         {
             "create": {
-                "status": "OK", "_index": "foo", "_type": "bar",
+                "status": 200, "_index": "foo", "_type": "bar",
                 "_id": "new_elastic_id", "_version": 1
             }
         }
@@ -52,7 +52,7 @@ class BulkCreateTest(unittest.TestCase):
         self.assertTrue(mock_post.called)
 
         self.assertEquals(docs[0]["_id"], "new_elastic_id")
-        self.assertEquals(docs[0]["status"], "OK")
+        self.assertEquals(docs[0]["status"], httplib.OK)
 
     @mock.patch("requests.post")
     def test_error(self, mock_post):
@@ -144,7 +144,7 @@ class BulkIndexTest(unittest.TestCase):
     "items": [
         {
             "index": {
-                "status": "OK", "_index": "foo", "_type": "bar",
+                "status": 200, "_index": "foo", "_type": "bar",
                 "_id": "abc", "_version": 1
             }
         }
@@ -156,7 +156,7 @@ class BulkIndexTest(unittest.TestCase):
         # http://stackoverflow.com/questions/3829742/assert-that-a-method-was-called-in-a-python-unit-test
         #
         self.assertTrue(mock_post.called)
-        self.assertEquals(docs[0]["status"], "OK")
+        self.assertEquals(docs[0]["status"], httplib.OK)
 
     @mock.patch("requests.post")
     def test_error(self, mock_post):
@@ -170,6 +170,40 @@ class BulkIndexTest(unittest.TestCase):
             self.assertEqual(err.message, "received HTTP 404")
 
 DUMMY_QUERY = {"query": {"match_all": {}}}
+
+
+class BulkDeleteTest(unittest.TestCase):
+
+    @mock.patch("requests.post")
+    def test(self, mock_post):
+        docs = [{"_id": "abc", "_source": {"text": "dummy text"}}]
+        delete = melastic.BulkDelete(DUMMY_CONFIG, docs)
+        self.assertEquals(delete.docs, docs)
+
+        jsonlines = delete.serialize().split("\n")
+        self.assertEquals(len(jsonlines), 2)
+        self.assertEquals(
+            json.loads(jsonlines[0]),
+            {"delete": {"_type": "bar", "_id": "abc", "_index": "foo"}}
+        )
+        self.assertEquals(jsonlines[1], "")
+
+        mock_post.return_value = mock.MagicMock()
+        mock_post.return_value.status_code = httplib.OK
+        mock_post.return_value.text = """
+{
+    "took": 1, "errors": 0,
+    "items": [
+        {
+            "delete": {
+                "status": 200, "_index": "foo", "_type": "bar",
+                "_id": "abc", "_version": 1
+            }
+        }
+    ]
+}
+"""
+        delete.push()
 
 
 class ScrollTest(unittest.TestCase):
