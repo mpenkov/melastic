@@ -21,6 +21,7 @@ class HttpException(Exception):
 
     def __init__(self, code, body):
         super(HttpException, self).__init__("received HTTP %d" % code)
+        self.code = code
         self.body = body
 
 

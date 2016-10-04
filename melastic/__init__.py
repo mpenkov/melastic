@@ -10,3 +10,4 @@ from .melastic import BulkUpdate
 from .melastic import BulkIndex
 from .melastic import BulkDelete
 from .melastic import Scroll
+from .melastic import HttpException
