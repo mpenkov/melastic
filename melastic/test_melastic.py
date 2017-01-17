@@ -65,6 +65,22 @@ class BulkCreateTest(unittest.TestCase):
             melastic.BulkCreate(DUMMY_CONFIG, docs).push()
             self.assertEqual(err.message, "received HTTP 404")
 
+    def test_serialize_without_id(self):
+        action = {"create": {"_index": "foo", "_type": "bar"}}
+        doc = {"_source": {"foo": "bar"}}
+        expected = "\n".join([json.dumps(action), json.dumps(doc["_source"]), ""])
+
+        actual = melastic.BulkCreate(DUMMY_CONFIG, [doc]).serialize()
+        self.assertEqual(expected, actual)
+
+    def test_serialize_with_id(self):
+        action = {"create": {"_index": "foo", "_type": "bar", "_id": "myid"}}
+        doc = {"_source": {"foo": "bar"}, "_id": "myid"}
+        expected = "\n".join([json.dumps(action), json.dumps(doc["_source"]), ""])
+
+        actual = melastic.BulkCreate(DUMMY_CONFIG, [doc]).serialize()
+        self.assertEqual(expected, actual)
+
 
 class BulkUpdateTest(unittest.TestCase):
 
@@ -249,6 +265,7 @@ class ScrollTest(unittest.TestCase):
         scroll._Scroll__open()
 
         self.assertEquals(scroll.num_pages, 10)
+        self.assertEquals(len(scroll), 10)
         self.assertEquals(scroll.scroll_id, "dummy_scroll_id")
         self.assertEquals(len(scroll.first_page), 1)
         self.assertEquals(scroll.first_page[0]["_id"], "abc")

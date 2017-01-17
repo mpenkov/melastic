@@ -109,6 +109,10 @@ class BulkCreate(Batch):
                     "_index": self.config.index, "_type": self.config.doctype
                 }
             }
+            try:
+                action["create"]["_id"] = doc["_id"]
+            except KeyError:
+                pass
             lines.append(json.dumps(action))
             lines.append(json.dumps(doc["_source"]))
         #
