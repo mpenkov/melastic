@@ -5,7 +5,7 @@ import mock
 import requests  # NOQA we need this for mocking
 import six.moves.http_client as httplib
 
-from . import melastic
+import melastic
 
 
 DUMMY_CONFIG = melastic.Config("http://foo.bar", {}, "foo", "bar")
